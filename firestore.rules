@@ -1,0 +1,289 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Hardened Global Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerified() && request.auth.token.email == 'rakshanayak290@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() || (
+        isVerified() && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidString(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    // 3. Entity Validation Blueprints
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'fullName', 'studentId', 'email', 'department', 'role', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'fullName', 'studentId', 'email', 'department', 'role', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && isValidString(data.fullName, 2, 100)
+        && isValidString(data.studentId, 0, 40)
+        && isValidString(data.email, 3, 150)
+        && isValidString(data.department, 0, 80)
+        && data.role in ['student', 'admin']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAdminRegistry(data) {
+      return data.keys().hasAll(['uid', 'email', 'fullName', 'createdAt'])
+        && data.keys().hasOnly(['uid', 'email', 'fullName', 'createdAt'])
+        && isValidId(data.uid)
+        && isValidString(data.email, 3, 150)
+        && isValidString(data.fullName, 2, 100)
+        && data.createdAt is timestamp;
+    }
+
+    function isValidComplaint(data) {
+      return data.keys().hasAll([
+          'complaintId', 'studentUid', 'studentName', 'studentEmail', 'studentIdNumber',
+          'title', 'description', 'category', 'building', 'location',
+          'priority', 'imageUrl', 'status', 'adminRemarks', 'history',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'complaintId', 'studentUid', 'studentName', 'studentEmail', 'studentIdNumber',
+          'title', 'description', 'category', 'building', 'location',
+          'priority', 'imageUrl', 'status', 'adminRemarks', 'history',
+          'affectedStudentsCount', 'affectedUsnRange',
+          'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.complaintId)
+        && isValidId(data.studentUid)
+        && isValidString(data.studentName, 2, 100)
+        && isValidString(data.studentEmail, 3, 150)
+        && isValidString(data.studentIdNumber, 0, 40)
+        && isValidString(data.title, 4, 140)
+        && isValidString(data.description, 10, 2000)
+        && data.category in [
+          'Electricity', 'Water Supply', 'Classroom Maintenance', 'Washroom Cleanliness',
+          'Internet Connectivity', 'Furniture Damage', 'Campus Cleanliness', 'Other Issues'
+        ]
+        && isValidString(data.building, 2, 100)
+        && isValidString(data.location, 2, 140)
+        && data.priority in ['Low', 'Medium', 'High', 'Critical']
+        && isValidString(data.imageUrl, 0, 2048)
+        && data.status in ['Submitted', 'Under Review', 'In Progress', 'Resolved']
+        && isValidString(data.adminRemarks, 0, 1000)
+        && data.history is list
+        && data.history.size() >= 1
+        && data.history.size() <= 20
+        && data.history[0] is map
+        && (!('affectedStudentsCount' in data) || (data.affectedStudentsCount is int && data.affectedStudentsCount >= 1 && data.affectedStudentsCount <= 500))
+        && (!('affectedUsnRange' in data) || isValidString(data.affectedUsnRange, 0, 80))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['recipientUid', 'recipientRole', 'complaintId', 'title', 'message', 'type', 'read', 'createdAt'])
+        && data.keys().hasOnly(['recipientUid', 'recipientRole', 'complaintId', 'title', 'message', 'type', 'read', 'createdAt'])
+        && isValidId(data.recipientUid)
+        && data.recipientRole in ['student', 'admin']
+        && isValidId(data.complaintId)
+        && isValidString(data.title, 2, 140)
+        && isValidString(data.message, 2, 500)
+        && data.type in ['submitted', 'under_review', 'in_progress', 'resolved', 'new_complaint']
+        && data.read is bool
+        && data.createdAt is timestamp;
+    }
+
+    function isValidPublicStats(data) {
+      return data.keys().hasAll(['totalReported', 'totalResolved', 'activeRequests', 'updatedAt'])
+        && data.keys().hasOnly(['totalReported', 'totalResolved', 'activeRequests', 'registeredStudents', 'updatedAt'])
+        && data.totalReported is int && data.totalReported >= 0
+        && data.totalResolved is int && data.totalResolved >= 0
+        && data.activeRequests is int && data.activeRequests >= 0
+        && (!('registeredStudents' in data) || (data.registeredStudents is int && data.registeredStudents >= 0 && data.registeredStudents <= 500))
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidShardId(shardId) {
+      return shardId is string && shardId.matches('^shard_([0-9]|1[0-9])$');
+    }
+
+    function isValidPublicStatsShard(data) {
+      return data.keys().hasAll(['totalReported', 'totalResolved', 'activeRequests', 'registeredStudents', 'updatedAt'])
+        && data.keys().hasOnly(['totalReported', 'totalResolved', 'activeRequests', 'registeredStudents', 'updatedAt'])
+        && data.totalReported is int && data.totalReported >= 0
+        && data.totalResolved is int && data.totalResolved >= 0
+        && data.activeRequests is int && data.activeRequests >= 0
+        && data.registeredStudents is int && data.registeredStudents >= 0 && data.registeredStudents <= 500
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidContactMessage(data) {
+      return data.keys().hasAll(['name', 'email', 'subject', 'message', 'createdAt'])
+        && data.keys().hasOnly(['name', 'email', 'subject', 'message', 'createdAt'])
+        && isValidString(data.name, 2, 100)
+        && isValidString(data.email, 3, 150)
+        && isValidString(data.subject, 2, 140)
+        && isValidString(data.message, 10, 1500)
+        && data.createdAt is timestamp;
+    }
+
+    // 4. Collection Match Blocks
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isSignedIn()
+        && isValidId(userId)
+        && isOwner(userId)
+        && isValidUser(incoming())
+        && incoming().uid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (incoming().role == 'student' || isBootstrappedAdmin());
+      allow update: if isSignedIn()
+        && isValidId(userId)
+        && isValidUser(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (isOwner(userId)
+            && incoming().role == existing().role
+            && incoming().email == existing().email
+            && incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'studentId', 'department', 'updatedAt']))
+          || isAdmin()
+        );
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    match /admins/{adminId} {
+      allow get: if isValidId(adminId) && (isOwner(adminId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isValidId(adminId)
+        && isValidAdminRegistry(incoming())
+        && incoming().uid == adminId
+        && incoming().createdAt == request.time
+        && ((isBootstrappedAdmin() && isOwner(adminId)) || isAdmin());
+      allow update: if isValidId(adminId) && isAdmin() && isValidAdminRegistry(incoming());
+      allow delete: if isValidId(adminId) && isAdmin();
+    }
+
+    match /complaints/{complaintId} {
+      allow get: if isSignedIn()
+        && isValidId(complaintId)
+        && (existing().studentUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn()
+        && (resource.data.studentUid == request.auth.uid || isAdmin());
+      allow create: if isVerified()
+        && isValidId(complaintId)
+        && isValidComplaint(incoming())
+        && incoming().complaintId == complaintId
+        && incoming().studentUid == request.auth.uid
+        && incoming().status == 'Submitted'
+        && incoming().adminRemarks == ''
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isAdmin()
+        && isValidId(complaintId)
+        && isValidComplaint(incoming())
+        && incoming().complaintId == existing().complaintId
+        && incoming().studentUid == existing().studentUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (existing().status != 'Resolved' || isAdmin())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'adminRemarks', 'priority', 'history', 'updatedAt']);
+      allow delete: if isValidId(complaintId) && isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow get: if isSignedIn()
+        && isValidId(notificationId)
+        && (existing().recipientUid == request.auth.uid || (existing().recipientRole == 'admin' && isAdmin()));
+      allow list: if isSignedIn()
+        && (resource.data.recipientUid == request.auth.uid || (resource.data.recipientRole == 'admin' && isAdmin()));
+      allow create: if isVerified()
+        && isValidId(notificationId)
+        && isValidNotification(incoming())
+        && incoming().createdAt == request.time
+        && (
+          (incoming().recipientUid == request.auth.uid && incoming().recipientRole == 'student')
+          || (incoming().recipientUid == 'admins' && incoming().recipientRole == 'admin')
+          || isAdmin()
+        );
+      allow update: if isSignedIn()
+        && isValidId(notificationId)
+        && isValidNotification(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['read'])
+        && (existing().recipientUid == request.auth.uid || (existing().recipientRole == 'admin' && isAdmin()));
+      allow delete: if isSignedIn()
+        && isValidId(notificationId)
+        && (existing().recipientUid == request.auth.uid || isAdmin());
+    }
+
+    match /public_stats/{statId} {
+      allow get: if statId == 'campus';
+      allow create, update: if isVerified()
+        && statId == 'campus'
+        && isValidPublicStats(incoming())
+        && incoming().updatedAt == request.time;
+      allow delete: if false;
+    }
+
+    match /public_stats_shards/{shardId} {
+      allow get: if isValidShardId(shardId);
+      allow create: if isValidShardId(shardId)
+        && isValidPublicStatsShard(incoming())
+        && incoming().updatedAt == request.time
+        && (
+          (isSignedIn() && incoming().totalReported == 0 && incoming().totalResolved == 0 && incoming().activeRequests == 0 && incoming().registeredStudents <= 1)
+          || isVerified()
+        );
+      allow update: if isValidShardId(shardId)
+        && isValidPublicStatsShard(incoming())
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['totalReported', 'totalResolved', 'activeRequests', 'registeredStudents', 'updatedAt'])
+        && (
+          (isSignedIn() && incoming().totalReported == existing().totalReported && incoming().totalResolved == existing().totalResolved && incoming().activeRequests == existing().activeRequests)
+          || isVerified()
+        );
+      allow delete: if false;
+    }
+
+    match /contact_messages/{messageId} {
+      allow get, list, update, delete: if isAdmin();
+      allow create: if isValidId(messageId)
+        && isValidContactMessage(incoming())
+        && incoming().createdAt == request.time;
+    }
+  }
+}

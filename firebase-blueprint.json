@@ -1,0 +1,371 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered campus student or administrator profile",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "fullName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "studentId": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 40
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 150
+        },
+        "department": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 80
+        },
+        "role": {
+          "type": "string",
+          "enum": ["student", "admin"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "fullName", "email", "role", "createdAt", "updatedAt"]
+    },
+    "AdminRegistry": {
+      "title": "AdminRegistry",
+      "description": "Trusted administrator lookup registry for RBAC verification",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 150
+        },
+        "fullName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "fullName", "createdAt"]
+    },
+    "Complaint": {
+      "title": "Complaint",
+      "description": "Campus maintenance or infrastructure issue report submitted by a student",
+      "type": "object",
+      "properties": {
+        "complaintId": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "studentUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "studentName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "studentEmail": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 150
+        },
+        "studentIdNumber": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 40
+        },
+        "title": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 140
+        },
+        "description": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 2000
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "Electricity",
+            "Water Supply",
+            "Classroom Maintenance",
+            "Washroom Cleanliness",
+            "Internet Connectivity",
+            "Furniture Damage",
+            "Campus Cleanliness",
+            "Other Issues"
+          ]
+        },
+        "building": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "location": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 140
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["Low", "Medium", "High", "Critical"]
+        },
+        "imageUrl": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 2048
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Submitted", "Under Review", "In Progress", "Resolved"]
+        },
+        "adminRemarks": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 1000
+        },
+        "history": {
+          "type": "array",
+          "description": "Bounded audit log of status changes (max 20 entries)"
+        },
+        "affectedStudentsCount": {
+          "type": "integer",
+          "description": "Number of affected cohort students (1 to 500)"
+        },
+        "affectedUsnRange": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 80,
+          "description": "Optional affected student USN range or cohort batch"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "complaintId",
+        "studentUid",
+        "studentName",
+        "studentEmail",
+        "title",
+        "description",
+        "category",
+        "building",
+        "location",
+        "priority",
+        "imageUrl",
+        "status",
+        "adminRemarks",
+        "history",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "Real-time notification for students and administrators",
+      "type": "object",
+      "properties": {
+        "recipientUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "recipientRole": {
+          "type": "string",
+          "enum": ["student", "admin"]
+        },
+        "complaintId": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 140
+        },
+        "message": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 500
+        },
+        "type": {
+          "type": "string",
+          "enum": ["submitted", "under_review", "in_progress", "resolved", "new_complaint"]
+        },
+        "read": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "recipientUid",
+        "recipientRole",
+        "complaintId",
+        "title",
+        "message",
+        "type",
+        "read",
+        "createdAt"
+      ]
+    },
+    "PublicStats": {
+      "title": "PublicStats",
+      "description": "Aggregate non-PII counters displayed on the CampusFix landing page",
+      "type": "object",
+      "properties": {
+        "totalReported": {
+          "type": "integer"
+        },
+        "totalResolved": {
+          "type": "integer"
+        },
+        "activeRequests": {
+          "type": "integer"
+        },
+        "registeredStudents": {
+          "type": "integer"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["totalReported", "totalResolved", "activeRequests", "updatedAt"]
+    },
+    "PublicStatsShard": {
+      "title": "PublicStatsShard",
+      "description": "Distributed counter shard supporting up to 500 concurrent student registrations and complaint submissions without transaction contention",
+      "type": "object",
+      "properties": {
+        "totalReported": {
+          "type": "integer"
+        },
+        "totalResolved": {
+          "type": "integer"
+        },
+        "activeRequests": {
+          "type": "integer"
+        },
+        "registeredStudents": {
+          "type": "integer"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["totalReported", "totalResolved", "activeRequests", "registeredStudents", "updatedAt"]
+    },
+    "ContactMessage": {
+      "title": "ContactMessage",
+      "description": "Contact inquiry submitted from the landing page",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 150
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 140
+        },
+        "message": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 1500
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["name", "email", "subject", "message", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles partitioned by Firebase Auth UID"
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminRegistry" },
+      "description": "Trusted administrator registry keyed by Auth UID"
+    },
+    "/complaints/{complaintId}": {
+      "schema": { "$ref": "#/entities/Complaint" },
+      "description": "Campus issue complaints keyed by unique complaint ID"
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/Notification" },
+      "description": "Real-time notifications for students and administrators"
+    },
+    "/public_stats/{statId}": {
+      "schema": { "$ref": "#/entities/PublicStats" },
+      "description": "Public aggregate campus metrics document"
+    },
+    "/public_stats_shards/{shardId}": {
+      "schema": { "$ref": "#/entities/PublicStatsShard" },
+      "description": "20 distributed counter shards (shard_0..shard_19) for high-concurrency student registration and complaint writes"
+    },
+    "/contact_messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ContactMessage" },
+      "description": "Public contact inquiries stored for administrator review"
+    }
+  }
+}
